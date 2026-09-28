@@ -52,35 +52,19 @@
             # inner two loop change to numpy
             out[i,j]=np.sum(padded[i:i+kh, j:j+kw]*kf)
     return out</pre>
-<p>Two loops the other way round, looping over the kernel and shifting the whole image. Much faster, because every numpy call works on the full image.</p>
-<pre>def conv_2loops_kernel(im, k):
-    # another way: loop the kernel, not the pixel
-    H,W=im.shape
-    kh,kw=k.shape
-    ph=kh//2
-    pw=kw//2
-    kf=k[::-1,::-1]
-    padded=np.zeros((H+kh-1, W+kw-1))
-    padded[ph:ph+H, pw:pw+W]=im
-    out=np.zeros((H,W))
-    for u in range(kh):
-        for v in range(kw):
-            out=out+kf[u,v]*padded[u:u+H, v:v+W]
-    return out</pre>
 <p>Test on a 320x400 grayscale picture of myself, compared with <code>scipy.signal.convolve2d(im, k, mode='same', boundary='fill', fillvalue=0)</code>:</p>
 <div class="table-wrap"><table>
-<thead><tr><th>Kernel</th><th>4 loops</th><th>2 loops (pixels)</th><th>2 loops (kernel)</th><th>scipy</th><th>max |diff| vs scipy</th></tr></thead>
+<thead><tr><th>Kernel</th><th>4 loops</th><th>2 loops</th><th>scipy</th><th>max |diff| vs scipy</th></tr></thead>
 <tbody>
-<tr><td>9x9 box</td><td>1.96 s</td><td>0.28 s</td><td>0.0075 s</td><td>0.011 s</td><td>1.9e-15</td></tr>
-<tr><td>D<sub>x</sub> = [1, -1]</td><td>0.086 s</td><td>0.28 s</td><td>0.0004 s</td><td>0.0008 s</td><td>0</td></tr>
-<tr><td>D<sub>y</sub> = [1, -1]<sup>T</sup></td><td>0.099 s</td><td>0.29 s</td><td>0.0003 s</td><td>0.0010 s</td><td>0</td></tr>
+<tr><td>9x9 box</td><td>1.96 s</td><td>0.28 s</td><td>0.011 s</td><td>1.9e-15</td></tr>
+<tr><td>D<sub>x</sub> = [1, -1]</td><td>0.083 s</td><td>0.28 s</td><td>0.0008 s</td><td>0</td></tr>
+<tr><td>D<sub>y</sub> = [1, -1]<sup>T</sup></td><td>0.097 s</td><td>0.28 s</td><td>0.0010 s</td><td>0</td></tr>
 </tbody></table></div>
-<p><strong>Runtime.</strong> The results are the same up to floating point. Pure Python loops are about 200x slower than scipy. The pixel version of two loops still makes 128,000 numpy calls, so the call overhead dominates; the kernel version makes 81 calls and is as fast as scipy. scipy is C code and can also switch to FFT for big kernels.</p>
-<p><strong>Boundaries.</strong> Zero padding treats everything outside the image as black, so the box filter gets a dark frame (average with zeros) and derivative filters get a fake edge along the border. scipy's <code>boundary='symm'</code> mirrors the image instead; the two differ by up to 0.50 on the border and by nothing 4 pixels inside. In 1.2 and 1.3 I use symmetric padding for that reason.</p>
-<div class="g5">
+<p><strong>Runtime.</strong> The results are identical up to floating point. Pure Python loops are about 200x slower than scipy for the 9x9 box. The two loop version still makes one numpy call per pixel (128,000 calls), so for the tiny D<sub>x</sub> kernel it is even slower than four plain loops. scipy is C code and can switch to FFT for big kernels.</p>
+<p><strong>Boundaries.</strong> My code and scipy with <code>boundary='fill'</code> treat everything outside the image as black. For the box filter this gives a dark frame around the picture (the average near the border includes zeros), and for the derivative filters a fake edge along the border. scipy can also mirror the image (<code>boundary='symm'</code>), which avoids both; I use that in Part 1.2 and 1.3.</p>
+<div class="g4">
 <figure><img src="assets/me_gray.jpg" alt="grayscale selfie"><figcaption>Input, 320x400</figcaption></figure>
-<figure><img src="assets/me_box.jpg" alt="box filtered selfie"><figcaption>9x9 box, zero padding (dark frame)</figcaption></figure>
-<figure><img src="assets/me_box_symm.jpg" alt="box filtered selfie with symmetric padding"><figcaption>9x9 box, symmetric padding</figcaption></figure>
+<figure><img src="assets/me_box.jpg" alt="box filtered selfie"><figcaption>9x9 box filter (note the dark frame)</figcaption></figure>
 <figure><img src="assets/me_Dx.jpg" alt="Dx of selfie"><figcaption>D<sub>x</sub>: vertical edges (gray = 0)</figcaption></figure>
 <figure><img src="assets/me_Dy.jpg" alt="Dy of selfie"><figcaption>D<sub>y</sub>: horizontal edges</figcaption></figure>
 </div>
@@ -123,11 +107,11 @@
 </div>
 <p><strong>Differences:</strong> the gradient values are much smaller (a step is spread over several pixels), so the threshold drops from 0.25 to 0.06. The edges are thicker and continuous instead of broken dashes, and the grass texture is mostly gone because the blur removes it before the derivative. Less noise and fewer missing edges at the same time.</p>
 <h3>DoG: one convolution instead of two</h3>
-<p>Convolution is associative, (I * G) * D<sub>x</sub> = I * (G * D<sub>x</sub>), so I convolve the Gaussian with D<sub>x</sub> and D<sub>y</sub> once to get two DoG filters.</p>
+<p>Convolution is associative, (I * G) * D<sub>x</sub> = I * (G * D<sub>x</sub>), so I convolve the Gaussian with D<sub>x</sub> and D<sub>y</sub> once to get two DoG filters and then convolve the image only once.</p>
 <div class="g3">
-<figure><img src="assets/filters_plot.png" alt="Gaussian and DoG filters plot"><figcaption>Gaussian, DoG<sub>x</sub>, DoG<sub>y</sub> (red positive, blue negative)</figcaption></figure>
-<figure><img src="assets/filter_DoGx.png" alt="DoG x filter"><figcaption>DoG<sub>x</sub> as image, 20x enlarged</figcaption></figure>
-<figure><img src="assets/filter_DoGy.png" alt="DoG y filter"><figcaption>DoG<sub>y</sub></figcaption></figure>
+<figure><img src="assets/filter_G.png" alt="Gaussian filter"><figcaption>Gaussian, 11x11 (20x enlarged)</figcaption></figure>
+<figure><img src="assets/filter_DoGx.png" alt="DoG x filter"><figcaption>DoG<sub>x</sub> = G * D<sub>x</sub>, 11x12 (gray = 0)</figcaption></figure>
+<figure><img src="assets/filter_DoGy.png" alt="DoG y filter"><figcaption>DoG<sub>y</sub> = G * D<sub>y</sub>, 12x11</figcaption></figure>
 </div>
 <div class="g4">
 <figure><img src="assets/camdog_dx.jpg" alt="DoG x response"><figcaption>I * DoG<sub>x</sub></figcaption></figure>
@@ -135,7 +119,7 @@
 <figure><img src="assets/camdog_mag.jpg" alt="DoG gradient magnitude"><figcaption>Gradient magnitude</figcaption></figure>
 <figure><img src="assets/camdog_edge_0.06.jpg" alt="DoG edges"><figcaption>threshold 0.06</figcaption></figure>
 </div>
-<p>Verification: the gradient magnitudes from the two ways differ by at most 1.1e-15 and the edge maps are identical for every threshold. (With zero padding they only agreed inside the image; padding twice with zeros is not the same as padding once with the wider filter.)</p>
+<p>Verification: the gradient magnitudes from the two ways differ by at most 1.1e-15 and the edge maps are identical for every threshold.</p>
 </section>
 
 <section id="p21">
@@ -147,7 +131,7 @@
 <div class="g4">
 <figure><img src="assets/taj_orig.jpg" alt="taj original"><figcaption>Original</figcaption></figure>
 <figure><img src="assets/taj_blur.jpg" alt="taj blurred"><figcaption>Blurred (low frequencies)</figcaption></figure>
-<figure><img src="assets/taj_high05.jpg" alt="taj high frequencies"><figcaption>High frequencies (x3, gray = 0)</figcaption></figure>
+<figure><img src="assets/taj_high.jpg" alt="taj high frequencies"><figcaption>High frequencies (x3, gray = 0)</figcaption></figure>
 <figure><img src="assets/taj_sharp_a1.jpg" alt="taj sharpened alpha 1"><figcaption>Sharpened, α = 1</figcaption></figure>
 </div>
 <div class="g4">
@@ -159,55 +143,39 @@
 <p>α = 0.5 to 1 makes the carvings and the people crisper. At α = 2 halos appear around the dark trees. At α = 4 the sky gets grainy because JPEG noise is high frequency too, and the dome looks outlined. Sharpening adds no information, it only boosts existing edges, so the good α depends on how noisy the picture is.</p>
 <h3>Doe Library, σ = 2</h3>
 <div class="g4">
-<figure><img src="assets/doe_orig.jpg" alt="doe library original"><figcaption>Doe Library, overcast</figcaption></figure>
-<figure><img src="assets/doe_high.jpg" alt="doe high frequencies"><figcaption>High frequencies (stretched)</figcaption></figure>
+<figure><img src="assets/doe_orig.jpg" alt="doe library original"><figcaption>Original, overcast day</figcaption></figure>
+<figure><img src="assets/doe_high.jpg" alt="doe high frequencies"><figcaption>High frequencies (x3, gray = 0)</figcaption></figure>
 <figure><img src="assets/doe_sharp_a1.jpg" alt="doe alpha 1"><figcaption>α = 1</figcaption></figure>
 <figure><img src="assets/doe_sharp_a2.jpg" alt="doe alpha 2"><figcaption>α = 2</figcaption></figure>
 </div>
 <p>The columns and window frames pop out at α = 1, α = 2 starts to look harsh. The flat gray sky stays flat, it has no high frequencies to boost.</p>
 <h3>Evaluation: blur a sharp image, then sharpen it</h3>
-<p>A sharp lion photo, blurred with σ = 2, then unsharp masked with the same σ. As a sharpness number I use the mean gradient magnitude, plus the MSE to the original.</p>
+<p>A sharp lion photo, blurred with σ = 2, then unsharp masked with the same σ.</p>
 <div class="g4">
 <figure><img src="assets/lion_orig.jpg" alt="lion original"><figcaption>Original</figcaption></figure>
 <figure><img src="assets/lion_blurred.jpg" alt="lion blurred"><figcaption>Blurred, σ = 2</figcaption></figure>
 <figure><img src="assets/lion_resharp_a2.jpg" alt="lion resharpened alpha 2"><figcaption>Blurred then sharpened, α = 2</figcaption></figure>
 <figure><img src="assets/lion_resharp_a5.jpg" alt="lion resharpened alpha 5"><figcaption>α = 5</figcaption></figure>
 </div>
-<div class="g3">
-<figure><img src="assets/lion_orig_crop.jpg" alt="crop original"><figcaption>Mane crop, original</figcaption></figure>
-<figure><img src="assets/lion_blurred_crop.jpg" alt="crop blurred"><figcaption>Blurred</figcaption></figure>
-<figure><img src="assets/lion_resharp_a2_crop.jpg" alt="crop resharpened"><figcaption>Sharpened, α = 2</figcaption></figure>
-</div>
-<div class="table-wrap"><table>
-<thead><tr><th>Image</th><th>Mean gradient magnitude</th><th>MSE to original</th></tr></thead>
-<tbody>
-<tr><td>original</td><td>0.0678</td><td>0</td></tr>
-<tr><td>blurred σ = 2</td><td>0.0157</td><td>0.00359</td></tr>
-<tr><td>sharpened α = 1</td><td>0.0202</td><td>0.00298</td></tr>
-<tr><td>sharpened α = 2</td><td>0.0252</td><td>0.00271</td></tr>
-<tr><td>sharpened α = 3</td><td>0.0303</td><td>0.00276</td></tr>
-<tr><td>sharpened α = 5</td><td>0.0408</td><td>0.00381</td></tr>
-</tbody></table></div>
-<p>Sharpening helps a bit (MSE lowest at α = 2) but even α = 5 stays far below the original's sharpness and the MSE goes up again. The crop shows why: the fine hairs were averaged away and are not in the image anymore. Unsharp masking boosts the edges that survived the blur, it cannot bring the lost texture back. It is not the inverse of blurring.</p>
+<p>Sharpening makes the blurred lion look crisper again, but the fine hairs of the mane do not come back: they were averaged away by the blur and are not in the image anymore. At α = 5 the edges that survived get halos while the fur stays smooth. Unsharp masking boosts the high frequencies that are still there, it is not the inverse of blurring.</p>
 </section>
 
 <section id="p22">
 <h2>Part 2.2: Hybrid images</h2>
 <p>Hybrid = low frequencies of one picture + high frequencies of another. Close up the high frequencies win, from far away only the low frequencies are left. Low pass: Gaussian with σ<sub>low</sub>. High pass: image minus Gaussian with σ<sub>high</sub>. All hybrids are grayscale.</p>
-<p>Alignment uses the starter code, but with the two eye positions typed in instead of clicked: recenter on the eye midpoint, rescale so the eye distances match, rotate one image, crop to the same size. Two changes: I rotate the low frequency image (a rotated blurry image looks fine, a rotated sharp one shows black corners), and I crop away the padded borders afterwards.</p>
+<p>Alignment uses the starter code with the two eye positions typed in instead of clicked: recenter on the eye midpoint, rescale so the eye distances match, rotate one image, crop both to the same size. I pass the low frequency picture as the one that gets rotated, since black corners matter less on a blurred image. The black borders come from this padding and rotation.</p>
 
 <h3>Derek and Nutmeg, full process</h3>
 <div class="g4">
 <figure><img src="assets/derek_in1.jpg" alt="Derek"><figcaption>Input 1, Derek (high)</figcaption></figure>
 <figure><img src="assets/derek_in2.jpg" alt="Nutmeg"><figcaption>Input 2, Nutmeg (low)</figcaption></figure>
-<figure><img src="assets/derek_aligned1.jpg" alt="Derek aligned"><figcaption>Aligned, cropped, gray</figcaption></figure>
+<figure><img src="assets/derek_aligned1.jpg" alt="Derek aligned"><figcaption>Derek aligned, gray</figcaption></figure>
 <figure><img src="assets/derek_aligned2.jpg" alt="Nutmeg aligned"><figcaption>Nutmeg scaled, rotated, cropped</figcaption></figure>
 </div>
-<div class="g4">
-<figure><img src="assets/derek_high.jpg" alt="Derek high pass"><figcaption>High pass, σ<sub>high</sub> = 4 (gray = 0)</figcaption></figure>
-<figure><img src="assets/derek_low.jpg" alt="Nutmeg low pass"><figcaption>Low pass, σ<sub>low</sub> = 10</figcaption></figure>
-<figure><img src="assets/derek_hybrid.jpg" alt="hybrid"><figcaption>Hybrid</figcaption></figure>
-<figure><img src="assets/derek_far.jpg" alt="hybrid at several sizes"><figcaption>Shrunk 2x, 4x, 8x: the cat takes over</figcaption></figure>
+<div class="g3">
+<figure><img src="assets/derek_high.jpg" alt="Derek high pass"><figcaption>High pass of Derek, σ<sub>high</sub> = 4 (gray = 0)</figcaption></figure>
+<figure><img src="assets/derek_low.jpg" alt="Nutmeg low pass"><figcaption>Low pass of Nutmeg, σ<sub>low</sub> = 10</figcaption></figure>
+<figure><img src="assets/derek_hybrid.jpg" alt="hybrid"><figcaption>Hybrid: Derek up close, Nutmeg from far</figcaption></figure>
 </div>
 <p>Log magnitude of the Fourier transform, <code>np.log(np.abs(np.fft.fftshift(np.fft.fft2(img))))</code>:</p>
 <div class="g5">
@@ -217,26 +185,23 @@
 <figure><img src="assets/derek_fft_low.jpg" alt="fft low pass"><figcaption>Low pass: only the center blob</figcaption></figure>
 <figure><img src="assets/derek_fft_hybrid.jpg" alt="fft hybrid"><figcaption>Hybrid: Nutmeg's center, Derek's outside</figcaption></figure>
 </div>
-<p><strong>Cutoff.</strong> A Gaussian with std σ pixels drops a frequency f (cycles/pixel) to half at f ≈ 0.19/σ. So σ<sub>low</sub> = 10 keeps details coarser than about 50 pixels per cycle and σ<sub>high</sub> = 4 keeps details finer than about 20 pixels, on the 482x406 image.</p>
+<p><strong>Cutoff.</strong> A Gaussian with std σ pixels drops a frequency f (cycles/pixel) to half at f ≈ 0.19/σ. So σ<sub>low</sub> = 10 keeps details coarser than about 50 pixels per cycle and σ<sub>high</sub> = 4 keeps details finer than about 20 pixels, on the 498x827 aligned image.</p>
 <figure class="narrow"><img src="assets/derek_cutoffs.jpg" alt="cutoff grid"><figcaption>Rows: σ<sub>high</sub> = 2, 4, 8. Columns: σ<sub>low</sub> = 5, 10, 20.</figcaption></figure>
 <p>σ<sub>low</sub> = 5 leaves the cat sharp enough to fight with Derek up close (double exposure); σ<sub>low</sub> = 20 turns the cat into a blob that never reads as a cat. σ<sub>high</sub> = 2 leaves only thin outlines of Derek, σ<sub>high</sub> = 8 keeps so much of him that he is visible at every distance. σ<sub>high</sub> = 4, σ<sub>low</sub> = 10 gives the cleanest switch; σ<sub>low</sub> should be clearly larger than σ<sub>high</sub> so the two images do not share a band.</p>
 
 <h3>House cat and lion</h3>
-<p>Cat up close, lion from far. σ<sub>high</sub> = 4, σ<sub>low</sub> = 6 on 815x726. The lion needs a smaller σ<sub>low</sub> than Nutmeg because its face is small in the frame; at σ<sub>low</sub> = 9 mane and grass merge into one blob.</p>
-<div class="g4">
+<p>Cat up close, lion from far, aligned on the eyes. σ<sub>high</sub> = 4, σ<sub>low</sub> = 6. The lion needs a smaller σ<sub>low</sub> than Nutmeg because its face is small in the frame; with a bigger blur the mane and the grass merge into one blob.</p>
+<div class="g3">
 <figure><img src="assets/catlion_in1.jpg" alt="cat"><figcaption>Input 1, cat (high)</figcaption></figure>
 <figure><img src="assets/catlion_in2.jpg" alt="lion"><figcaption>Input 2, lion (low)</figcaption></figure>
 <figure><img src="assets/catlion_hybrid.jpg" alt="hybrid cat lion"><figcaption>Hybrid</figcaption></figure>
-<figure><img src="assets/catlion_far.jpg" alt="hybrid cat lion small"><figcaption>Shrunk 2x, 4x, 8x</figcaption></figure>
 </div>
-<figure class="narrow"><img src="assets/catlion_cutoffs.jpg" alt="cat lion cutoff grid"><figcaption>Rows: σ<sub>high</sub> = 3, 4, 6. Columns: σ<sub>low</sub> = 4, 6, 9.</figcaption></figure>
 
 <h3>Failure: Doe Library, close and far</h3>
-<div class="g4">
+<div class="g3">
 <figure><img src="assets/doe_in1.jpg" alt="doe close"><figcaption>Input 1, close (high)</figcaption></figure>
 <figure><img src="assets/doe_in2.jpg" alt="doe far"><figcaption>Input 2, far (low)</figcaption></figure>
-<figure><img src="assets/doe_hybrid.jpg" alt="doe hybrid"><figcaption>Hybrid</figcaption></figure>
-<figure><img src="assets/doe_far.jpg" alt="doe hybrid small"><figcaption>Shrunk 2x, 4x, 8x</figcaption></figure>
+<figure><img src="assets/doe_hybrid.jpg" alt="doe hybrid"><figcaption>Hybrid, σ<sub>high</sub> = 3, σ<sub>low</sub> = 8</figcaption></figure>
 </div>
 <p>Does not work. Both pictures are only straight lines and repeated windows, so the blurred building is just smeared lines that never form an object of its own; at every distance you see the sharp building plus smearing. The perspective is also different, so the lines cannot be aligned by scale and rotation. Hybrids need two images with similar coarse structure, and the low frequency one needs big smooth regions that survive the blur.</p>
 </section>
@@ -287,57 +252,33 @@
 <div class="g4">
 <figure><img src="assets/oraple_in1.jpg" alt="apple"><figcaption>Apple</figcaption></figure>
 <figure><img src="assets/oraple_in2.jpg" alt="orange"><figcaption>Orange</figcaption></figure>
-<figure><img src="assets/oraple_naive.jpg" alt="naive half and half"><figcaption>Half and half, no blending</figcaption></figure>
-<figure><img src="assets/oraple_blend.jpg" alt="oraple"><figcaption>Multiresolution blend</figcaption></figure>
+<figure><img src="assets/oraple_mask.jpg" alt="step mask"><figcaption>Mask, a step function</figcaption></figure>
+<figure><img src="assets/oraple_blend.jpg" alt="oraple"><figcaption>Blend</figcaption></figure>
 </div>
-<div class="g4">
-<figure><img src="assets/oraple_mask_0.jpg" alt="mask level 0"><figcaption>Mask, level 0 (step)</figcaption></figure>
-<figure><img src="assets/oraple_mask_2.jpg" alt="mask level 2"><figcaption>Mask, level 2</figcaption></figure>
-<figure><img src="assets/oraple_mask_4.jpg" alt="mask level 4"><figcaption>Mask, level 4</figcaption></figure>
-<figure><img src="assets/oraple_mask_5.jpg" alt="mask level 5"><figcaption>Mask, level 5</figcaption></figure>
-</div>
-<div class="g3">
-<figure><img src="assets/oraple_blend_l3_s2.jpg" alt="3 levels"><figcaption>3 levels, σ = 2: colour seam still visible</figcaption></figure>
-<figure><img src="assets/oraple_blend_l6_s1.jpg" alt="sigma 1"><figcaption>6 levels, σ = 1: narrower band</figcaption></figure>
-<figure><img src="assets/oraple_blend_l6_s4.jpg" alt="sigma 4"><figcaption>6 levels, σ = 4: wider band, apple side turns orange</figcaption></figure>
-</div>
-<p>Too few levels leave a sharp mask at the coarsest level, so the red/orange colour jump is cut abruptly. Larger σ widens the band at every level; at σ = 4 the colours mix over almost the whole fruit.</p>
-
 <h3>Liger (vertical seam, aligned on the eyes)</h3>
 <div class="g4">
-<figure><img src="assets/liger_in1.jpg" alt="lion aligned"><figcaption>Lion (left)</figcaption></figure>
+<figure><img src="assets/liger_in1.jpg" alt="lion aligned"><figcaption>Lion, aligned</figcaption></figure>
 <figure><img src="assets/liger_in2.jpg" alt="tiger aligned"><figcaption>Tiger, scaled and rotated to the lion's eyes</figcaption></figure>
-<figure><img src="assets/liger_naive.jpg" alt="liger naive"><figcaption>Hard seam</figcaption></figure>
+<figure><img src="assets/liger_mask.jpg" alt="liger mask"><figcaption>Mask</figcaption></figure>
 <figure><img src="assets/liger_blend.jpg" alt="liger blend"><figcaption>Blend</figcaption></figure>
 </div>
-<p>Stripes and mane stop with a sharp cut at fine scales, which looks like fur; the yellow and orange backgrounds fade over a wide band.</p>
-
-<h3>Moon over Doe Library (round mask)</h3>
-<p>A scaled moon disc is pasted into a copy of the Doe photo (only the disc, not the black sky), the mask is a slightly smaller circle.</p>
-<div class="g4">
-<figure><img src="assets/moon_in1.jpg" alt="moon pasted"><figcaption>Image A: moon pasted in</figcaption></figure>
-<figure><img src="assets/moon_mask.jpg" alt="moon mask"><figcaption>Mask</figcaption></figure>
-<figure><img src="assets/moon_naive.jpg" alt="moon naive"><figcaption>Hard cut: a sharp gray disc</figcaption></figure>
-<figure><img src="assets/moon_blend.jpg" alt="moon blend"><figcaption>Blend: the edge fades into the overcast sky</figcaption></figure>
-</div>
-
+<p>Stripes and mane stop with a sharp cut at fine scales, which looks like fur; the yellow and orange backgrounds fade over a wide band. The black band at the top is padding from the alignment.</p>
 <h3>Cat on Derek (ellipse mask), my favourite</h3>
 <p>The cat is aligned to Derek's eyes with the code from 2.2 (Derek gets scaled down to the cat's eye distance), the mask is an ellipse around the cat's head.</p>
-<div class="g5">
+<div class="g4">
 <figure><img src="assets/catderek_in1.jpg" alt="cat aligned"><figcaption>Cat, aligned</figcaption></figure>
 <figure><img src="assets/catderek_in2.jpg" alt="Derek aligned"><figcaption>Derek, aligned</figcaption></figure>
 <figure><img src="assets/catderek_mask.jpg" alt="ellipse mask"><figcaption>Mask</figcaption></figure>
-<figure><img src="assets/catderek_naive.jpg" alt="naive"><figcaption>Hard cut</figcaption></figure>
 <figure><img src="assets/catderek_blend.jpg" alt="cat derek blend"><figcaption>Blend</figcaption></figure>
 </div>
 <figure class="narrow"><img src="assets/catderek_fig342.jpg" alt="cat derek laplacian stack"><figcaption>Like Figure 10 in Burt and Adelson. Left: cat levels × mask. Middle: Derek levels × (1 − mask). Right: blended levels 0, 2, 4. Bottom: sums.</figcaption></figure>
-<p>At the fine levels the fur ends exactly at the ellipse and Derek's hair and collar start; at level 4 the pale sky behind the cat and the gray studio background are mixed over a band as wide as the head, so there is no colour edge. In the hard cut the pale blue shows as a sharp halo around the head, in the blend it becomes a soft glow.</p>
+<p>At the fine levels the fur ends exactly at the ellipse and Derek's hair and collar start; at level 4 the pale sky behind the cat and the gray studio background are mixed over a band as wide as the head, so there is no colour edge, only a soft glow around the head.</p>
 </section>
 
 <section id="learned">
 <h2>The most important thing I learned</h2>
 <p>Blur and detail are the same thing from two sides. A Gaussian keeps the low frequencies, original minus blur is the high frequencies, and with that one split you can sharpen (add the detail back), make a hybrid (detail of one picture on the blur of another) or blend (split into bands and pick a seam width per band). The practical lesson: most of the time went into thresholds, sigmas and alignment, not into the filters, and the right numbers depend on the image size and content.</p>
-<p class="small">Image credits: cameraman, Taj Mahal, apple/orange, Derek and Nutmeg from the course. Portrait (Part 1.1) and Doe Library photos are my own from Project 0. <a href="https://commons.wikimedia.org/wiki/File:Lion_waiting_in_Namibia.jpg">Lion</a> by Kevin Pluck (CC BY 2.0), <a href="https://commons.wikimedia.org/wiki/File:Cat_November_2010-1a.jpg">cat</a> by Alvesgaspar (CC BY-SA 3.0), <a href="https://commons.wikimedia.org/wiki/File:Full_Moon_Luc_Viatour.jpg">full moon</a> by Luc Viatour (CC BY-SA 3.0), <a href="https://commons.wikimedia.org/wiki/File:Siberischer_tiger_de_edit02.jpg">tiger</a> from Wikimedia Commons (CC BY-SA 2.5).</p>
+<p class="small">Image credits: cameraman, Taj Mahal, apple/orange, Derek and Nutmeg from the course. Portrait (Part 1.1) and Doe Library photos are my own from Project 0. <a href="https://commons.wikimedia.org/wiki/File:Lion_waiting_in_Namibia.jpg">Lion</a> by Kevin Pluck (CC BY 2.0), <a href="https://commons.wikimedia.org/wiki/File:Cat_November_2010-1a.jpg">cat</a> by Alvesgaspar (CC BY-SA 3.0), <a href="https://commons.wikimedia.org/wiki/File:Siberischer_tiger_de_edit02.jpg">tiger</a> from Wikimedia Commons (CC BY-SA 2.5).</p>
 </section>
 </main>
 </body>
