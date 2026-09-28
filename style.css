@@ -53,6 +53,11 @@ td:not(:first-child) { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; 
  h3 { font-size:13pt; margin:4mm 0 2mm; break-after:avoid; }
  section { padding:5mm 0 3mm; }
  .g2,.g3,.g4,.g5,.g6 { gap:3mm; margin:3mm 0; }
+ .g3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
+ .g4 { grid-template-columns:repeat(4,minmax(0,1fr)); }
+ .g5 { grid-template-columns:repeat(5,minmax(0,1fr)); }
+ .g6 { grid-template-columns:repeat(6,minmax(0,1fr)); }
+ .narrow { width:75%; }
  figure,pre,table,.equation { break-inside:avoid; }
  figcaption,.small { font-size:7.5pt; }
  pre { font-size:7.5pt; padding:3mm; background:#f0f0f0; color:#222; }
