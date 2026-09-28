@@ -157,20 +157,14 @@
 <figure><img src="assets/taj_sharp_a4.jpg" alt="alpha 4"><figcaption>α = 4</figcaption></figure>
 </div>
 <p>α = 0.5 to 1 makes the carvings and the people crisper. At α = 2 halos appear around the dark trees. At α = 4 the sky gets grainy because JPEG noise is high frequency too, and the dome looks outlined. Sharpening adds no information, it only boosts existing edges, so the good α depends on how noisy the picture is.</p>
-<h3>My own pictures, σ = 2</h3>
-<div class="g4">
-<figure><img src="assets/me_orig.jpg" alt="selfie original"><figcaption>Original (telephoto, a bit soft)</figcaption></figure>
-<figure><img src="assets/me_sharp_a1.jpg" alt="selfie alpha 1"><figcaption>α = 1</figcaption></figure>
-<figure><img src="assets/me_sharp_a2.jpg" alt="selfie alpha 2"><figcaption>α = 2</figcaption></figure>
-<figure><img src="assets/me_sharp_a4.jpg" alt="selfie alpha 4"><figcaption>α = 4</figcaption></figure>
-</div>
+<h3>Doe Library, σ = 2</h3>
 <div class="g4">
 <figure><img src="assets/doe_orig.jpg" alt="doe library original"><figcaption>Doe Library, overcast</figcaption></figure>
 <figure><img src="assets/doe_high.jpg" alt="doe high frequencies"><figcaption>High frequencies (stretched)</figcaption></figure>
 <figure><img src="assets/doe_sharp_a1.jpg" alt="doe alpha 1"><figcaption>α = 1</figcaption></figure>
 <figure><img src="assets/doe_sharp_a2.jpg" alt="doe alpha 2"><figcaption>α = 2</figcaption></figure>
 </div>
-<p>The portrait gains most at α = 1 (hair and glasses separate from the skin); α = 4 shows skin noise. On the building the columns pop out but the flat sky stays flat, it has no high frequencies to boost.</p>
+<p>The columns and window frames pop out at α = 1, α = 2 starts to look harsh. The flat gray sky stays flat, it has no high frequencies to boost.</p>
 <h3>Evaluation: blur a sharp image, then sharpen it</h3>
 <p>A sharp lion photo, blurred with σ = 2, then unsharp masked with the same σ. As a sharpness number I use the mean gradient magnitude, plus the MSE to the original.</p>
 <div class="g4">
@@ -226,15 +220,6 @@
 <p><strong>Cutoff.</strong> A Gaussian with std σ pixels drops a frequency f (cycles/pixel) to half at f ≈ 0.19/σ. So σ<sub>low</sub> = 10 keeps details coarser than about 50 pixels per cycle and σ<sub>high</sub> = 4 keeps details finer than about 20 pixels, on the 482x406 image.</p>
 <figure class="narrow"><img src="assets/derek_cutoffs.jpg" alt="cutoff grid"><figcaption>Rows: σ<sub>high</sub> = 2, 4, 8. Columns: σ<sub>low</sub> = 5, 10, 20.</figcaption></figure>
 <p>σ<sub>low</sub> = 5 leaves the cat sharp enough to fight with Derek up close (double exposure); σ<sub>low</sub> = 20 turns the cat into a blob that never reads as a cat. σ<sub>high</sub> = 2 leaves only thin outlines of Derek, σ<sub>high</sub> = 8 keeps so much of him that he is visible at every distance. σ<sub>high</sub> = 4, σ<sub>low</sub> = 10 gives the cleanest switch; σ<sub>low</sub> should be clearly larger than σ<sub>high</sub> so the two images do not share a band.</p>
-
-<h3>Me, close and far</h3>
-<p>Two portraits from Project 0: wide angle from close (slight smile) and telephoto from far (neutral). σ<sub>high</sub> = 3, σ<sub>low</sub> = 8. It works but is subtle, same person and same glasses; the mouth and face shape change.</p>
-<div class="g4">
-<figure><img src="assets/me_in1.jpg" alt="close portrait"><figcaption>Input 1, close (high)</figcaption></figure>
-<figure><img src="assets/me_in2.jpg" alt="far portrait"><figcaption>Input 2, far (low)</figcaption></figure>
-<figure><img src="assets/me_hybrid.jpg" alt="hybrid me"><figcaption>Hybrid</figcaption></figure>
-<figure><img src="assets/me_far.jpg" alt="hybrid me small"><figcaption>Shrunk 2x, 4x, 8x</figcaption></figure>
-</div>
 
 <h3>House cat and lion</h3>
 <p>Cat up close, lion from far. σ<sub>high</sub> = 4, σ<sub>low</sub> = 6 on 815x726. The lion needs a smaller σ<sub>low</sub> than Nutmeg because its face is small in the frame; at σ<sub>low</sub> = 9 mane and grass merge into one blob.</p>
@@ -336,23 +321,23 @@
 <figure><img src="assets/moon_blend.jpg" alt="moon blend"><figcaption>Blend: the edge fades into the overcast sky</figcaption></figure>
 </div>
 
-<h3>Cat on my face (ellipse mask), my favourite</h3>
-<p>The cat is aligned to my eyes with the code from 2.2, the mask is an ellipse around the cat's head.</p>
+<h3>Cat on Derek (ellipse mask), my favourite</h3>
+<p>The cat is aligned to Derek's eyes with the code from 2.2 (Derek gets scaled down to the cat's eye distance), the mask is an ellipse around the cat's head.</p>
 <div class="g5">
-<figure><img src="assets/catme_in1.jpg" alt="cat aligned"><figcaption>Cat, aligned</figcaption></figure>
-<figure><img src="assets/catme_in2.jpg" alt="me"><figcaption>Me</figcaption></figure>
-<figure><img src="assets/catme_mask.jpg" alt="ellipse mask"><figcaption>Mask</figcaption></figure>
-<figure><img src="assets/catme_naive.jpg" alt="naive"><figcaption>Hard cut</figcaption></figure>
-<figure><img src="assets/catme_blend.jpg" alt="cat me blend"><figcaption>Blend</figcaption></figure>
+<figure><img src="assets/catderek_in1.jpg" alt="cat aligned"><figcaption>Cat, aligned</figcaption></figure>
+<figure><img src="assets/catderek_in2.jpg" alt="Derek aligned"><figcaption>Derek, aligned</figcaption></figure>
+<figure><img src="assets/catderek_mask.jpg" alt="ellipse mask"><figcaption>Mask</figcaption></figure>
+<figure><img src="assets/catderek_naive.jpg" alt="naive"><figcaption>Hard cut</figcaption></figure>
+<figure><img src="assets/catderek_blend.jpg" alt="cat derek blend"><figcaption>Blend</figcaption></figure>
 </div>
-<figure class="narrow"><img src="assets/catme_fig342.jpg" alt="cat me laplacian stack"><figcaption>Like Figure 10 in Burt and Adelson. Left: cat levels × mask. Middle: my levels × (1 − mask). Right: blended levels 0, 2, 4. Bottom: sums.</figcaption></figure>
-<p>At the fine levels the fur ends exactly at the ellipse and my hair starts; at level 4 the green background and the pale sky behind the cat are mixed over a band as wide as the head, so there is no colour edge. In the hard cut the pale blue shows as a sharp halo, in the blend it becomes a soft lighter region.</p>
+<figure class="narrow"><img src="assets/catderek_fig342.jpg" alt="cat derek laplacian stack"><figcaption>Like Figure 10 in Burt and Adelson. Left: cat levels × mask. Middle: Derek levels × (1 − mask). Right: blended levels 0, 2, 4. Bottom: sums.</figcaption></figure>
+<p>At the fine levels the fur ends exactly at the ellipse and Derek's hair and collar start; at level 4 the pale sky behind the cat and the gray studio background are mixed over a band as wide as the head, so there is no colour edge. In the hard cut the pale blue shows as a sharp halo around the head, in the blend it becomes a soft glow.</p>
 </section>
 
 <section id="learned">
 <h2>The most important thing I learned</h2>
 <p>Blur and detail are the same thing from two sides. A Gaussian keeps the low frequencies, original minus blur is the high frequencies, and with that one split you can sharpen (add the detail back), make a hybrid (detail of one picture on the blur of another) or blend (split into bands and pick a seam width per band). The practical lesson: most of the time went into thresholds, sigmas and alignment, not into the filters, and the right numbers depend on the image size and content.</p>
-<p class="small">Image credits: cameraman, Taj Mahal, apple/orange, Derek and Nutmeg from the course. Portrait and Doe Library photos are my own from Project 0. <a href="https://commons.wikimedia.org/wiki/File:Lion_waiting_in_Namibia.jpg">Lion</a> by Kevin Pluck (CC BY 2.0), <a href="https://commons.wikimedia.org/wiki/File:Cat_November_2010-1a.jpg">cat</a> by Alvesgaspar (CC BY-SA 3.0), <a href="https://commons.wikimedia.org/wiki/File:Full_Moon_Luc_Viatour.jpg">full moon</a> by Luc Viatour (CC BY-SA 3.0), <a href="https://commons.wikimedia.org/wiki/File:Siberischer_tiger_de_edit02.jpg">tiger</a> from Wikimedia Commons (CC BY-SA 2.5).</p>
+<p class="small">Image credits: cameraman, Taj Mahal, apple/orange, Derek and Nutmeg from the course. Portrait (Part 1.1) and Doe Library photos are my own from Project 0. <a href="https://commons.wikimedia.org/wiki/File:Lion_waiting_in_Namibia.jpg">Lion</a> by Kevin Pluck (CC BY 2.0), <a href="https://commons.wikimedia.org/wiki/File:Cat_November_2010-1a.jpg">cat</a> by Alvesgaspar (CC BY-SA 3.0), <a href="https://commons.wikimedia.org/wiki/File:Full_Moon_Luc_Viatour.jpg">full moon</a> by Luc Viatour (CC BY-SA 3.0), <a href="https://commons.wikimedia.org/wiki/File:Siberischer_tiger_de_edit02.jpg">tiger</a> from Wikimedia Commons (CC BY-SA 2.5).</p>
 </section>
 </main>
 </body>
