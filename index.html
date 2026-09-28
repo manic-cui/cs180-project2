@@ -17,8 +17,8 @@
 
 <section id="p11">
 <h2>Part 1.1: Convolutions from scratch</h2>
-<p>Convolution slides a flipped kernel over the image and sums the products. I pad with zeros so the output keeps the input size ("same"). For kernel height <code>kh</code> I put <code>kh//2</code> zero rows on top and <code>kh-1-kh//2</code> at the bottom, which is how scipy centers the output, also for even kernels like D<sub>x</sub>.</p>
-<p>Four loops:</p>
+<p>Convolution is slide the flipped kernel on the image and sum up the products. I pad zeros around the image so output has same size as input ("same" mode). For kernel height <code>kh</code>, I put <code>kh//2</code> rows of zero on top and <code>kh-1-kh//2</code> rows at bottom, this is same as how scipy do it, so even kernel like D<sub>x</sub> also match.</p>
+<p>Four loops version:</p>
 <pre>def conv_4loops(im, k):
     H,W=im.shape
     kh,kw=k.shape
@@ -37,7 +37,7 @@
                     s=s+padded[i+u, j+v]*kf[u,v]
             out[i,j]=s
     return out</pre>
-<p>Two loops, the inner two become one numpy multiply and sum:</p>
+<p>Two loops version, the inner two loops is replaced by numpy multiply and sum:</p>
 <pre>def conv_2loops(im, k):
     H,W=im.shape
     kh,kw=k.shape
@@ -52,7 +52,7 @@
             # inner two loop change to numpy
             out[i,j]=np.sum(padded[i:i+kh, j:j+kw]*kf)
     return out</pre>
-<p>Test on a 320x400 grayscale picture of myself, compared with <code>scipy.signal.convolve2d(im, k, mode='same', boundary='fill', fillvalue=0)</code>:</p>
+<p>I test on a 320x400 gray picture of myself and compare with <code>scipy.signal.convolve2d(im, k, mode='same', boundary='fill', fillvalue=0)</code>:</p>
 <div class="table-wrap"><table>
 <thead><tr><th>Kernel</th><th>4 loops</th><th>2 loops</th><th>scipy</th><th>max |diff| vs scipy</th></tr></thead>
 <tbody>
@@ -60,11 +60,11 @@
 <tr><td>D<sub>x</sub> = [1, -1]</td><td>0.083 s</td><td>0.28 s</td><td>0.0008 s</td><td>0</td></tr>
 <tr><td>D<sub>y</sub> = [1, -1]<sup>T</sup></td><td>0.097 s</td><td>0.28 s</td><td>0.0010 s</td><td>0</td></tr>
 </tbody></table></div>
-<p><strong>Runtime.</strong> The results are identical up to floating point. Pure Python loops are about 200x slower than scipy for the 9x9 box. The two loop version still makes one numpy call per pixel (128,000 calls), so for the tiny D<sub>x</sub> kernel it is even slower than four plain loops. scipy is C code and can switch to FFT for big kernels.</p>
-<p><strong>Boundaries.</strong> My code and scipy with <code>boundary='fill'</code> treat everything outside the image as black. For the box filter this gives a dark frame around the picture (the average near the border includes zeros), and for the derivative filters a fake edge along the border. scipy can also mirror the image (<code>boundary='symm'</code>), which avoids both; I use that in Part 1.2 and 1.3.</p>
+<p><strong>Runtime.</strong> The results are same, only float error. Pure python loop is about 200 times slower than scipy for the 9x9 box. The two loops version still call numpy one time for every pixel (128,000 times), so for the small D<sub>x</sub> kernel it is even slower than four loops. scipy is C code, and for big kernel it can use FFT.</p>
+<p><strong>Boundary.</strong> My code and scipy with <code>boundary='fill'</code> both think outside the image is all black. So the box filter get a dark frame around the picture (the average near border include zeros), and derivative filter get a fake edge along the border. scipy also can mirror the image (<code>boundary='symm'</code>), then no such problem, I use this one in Part 1.2 and 1.3.</p>
 <div class="g4">
 <figure><img src="assets/me_gray.jpg" alt="grayscale selfie"><figcaption>Input, 320x400</figcaption></figure>
-<figure><img src="assets/me_box.jpg" alt="box filtered selfie"><figcaption>9x9 box filter (note the dark frame)</figcaption></figure>
+<figure><img src="assets/me_box.jpg" alt="box filtered selfie"><figcaption>9x9 box filter (can see the dark frame)</figcaption></figure>
 <figure><img src="assets/me_Dx.jpg" alt="Dx of selfie"><figcaption>D<sub>x</sub>: vertical edges (gray = 0)</figcaption></figure>
 <figure><img src="assets/me_Dy.jpg" alt="Dy of selfie"><figcaption>D<sub>y</sub>: horizontal edges</figcaption></figure>
 </div>
@@ -72,11 +72,11 @@
 
 <section id="p12">
 <h2>Part 1.2: Finite difference operator</h2>
-<p>Convolve the cameraman (float in [0, 1]) with D<sub>x</sub> and D<sub>y</sub> to get the partial derivatives, then the gradient magnitude per pixel:</p>
+<p>Convolve the cameraman (float in [0, 1]) with D<sub>x</sub> and D<sub>y</sub> to get partial derivative, then gradient magnitude for every pixel:</p>
 <div class="equation">|∇I| = sqrt( (∂I/∂x)² + (∂I/∂y)² )</div>
-<p>The edge image keeps the pixels where the magnitude is above a threshold.</p>
+<p>For edge image, keep the pixel whose magnitude is bigger than a threshold.</p>
 <div class="g4">
-<figure><img src="assets/cameraman.jpg" alt="cameraman"><figcaption>Cameraman (white png border cropped)</figcaption></figure>
+<figure><img src="assets/cameraman.jpg" alt="cameraman"><figcaption>Cameraman (white border of png is cut)</figcaption></figure>
 <figure><img src="assets/cam_dx.jpg" alt="partial derivative in x"><figcaption>∂I/∂x</figcaption></figure>
 <figure><img src="assets/cam_dy.jpg" alt="partial derivative in y"><figcaption>∂I/∂y</figcaption></figure>
 <figure><img src="assets/cam_mag.jpg" alt="gradient magnitude"><figcaption>Gradient magnitude</figcaption></figure>
@@ -84,32 +84,32 @@
 <div class="g4">
 <figure><img src="assets/cam_edge_0.15.jpg" alt="edges threshold 0.15"><figcaption>threshold 0.15</figcaption></figure>
 <figure><img src="assets/cam_edge_0.20.jpg" alt="edges threshold 0.20"><figcaption>threshold 0.20</figcaption></figure>
-<figure><img src="assets/cam_edge_0.25.jpg" alt="edges threshold 0.25"><figcaption>threshold 0.25 (chosen)</figcaption></figure>
+<figure><img src="assets/cam_edge_0.25.jpg" alt="edges threshold 0.25"><figcaption>threshold 0.25 (I choose this)</figcaption></figure>
 <figure><img src="assets/cam_edge_0.30.jpg" alt="edges threshold 0.30"><figcaption>threshold 0.30</figcaption></figure>
 </div>
-<p>I chose <strong>0.25</strong>. Below 0.2 the grass becomes a field of white dots, since the 2-pixel filter reacts to every small jump in the texture. At 0.3 the noise is gone but the buildings on the right and the far tripod leg start to vanish. 0.25 keeps the coat, camera, all tripod legs and most of the skyline with only a few grass speckles. Any threshold that removes all grass dots also removes the weak but real building edges, so it is a trade-off.</p>
+<p>I choose <strong>0.25</strong>. When threshold is lower than 0.2, the grass become many white dots, because the 2 pixel filter react to every small change in the texture. When 0.3, noise is gone but the buildings on the right and the far tripod leg also start to disappear. 0.25 keep the coat, the camera, all tripod legs and most of the skyline, only few grass dots left. It is a trade off, if I want to remove all grass dots, the weak but real edges of building also removed.</p>
 </section>
 
 <section id="p13">
 <h2>Part 1.3: Derivative of Gaussian filter</h2>
-<p>The difference filter only looks at two pixels, so it is noisy. I build a 2D Gaussian from <code>cv2.getGaussianKernel(11, 1.5)</code> and the outer product <code>g @ g.T</code>, blur the image first, then repeat 1.2.</p>
+<p>Difference filter only look at two pixels so it is noisy. I make a 2D Gaussian by <code>cv2.getGaussianKernel(11, 1.5)</code> and outer product <code>g @ g.T</code>, blur the image first, then do the same thing as 1.2.</p>
 <div class="g4">
 <figure><img src="assets/cam_blur.jpg" alt="blurred cameraman"><figcaption>Blur, σ = 1.5</figcaption></figure>
-<figure><img src="assets/camblur_dx.jpg" alt="dx of blurred"><figcaption>∂/∂x of blurred</figcaption></figure>
-<figure><img src="assets/camblur_dy.jpg" alt="dy of blurred"><figcaption>∂/∂y of blurred</figcaption></figure>
+<figure><img src="assets/camblur_dx.jpg" alt="dx of blurred"><figcaption>∂/∂x of blurred image</figcaption></figure>
+<figure><img src="assets/camblur_dy.jpg" alt="dy of blurred"><figcaption>∂/∂y of blurred image</figcaption></figure>
 <figure><img src="assets/camblur_mag.jpg" alt="gradient magnitude of blurred"><figcaption>Gradient magnitude</figcaption></figure>
 </div>
 <div class="g4">
 <figure><img src="assets/camblur_edge_0.03.jpg" alt="edge threshold 0.03"><figcaption>threshold 0.03</figcaption></figure>
 <figure><img src="assets/camblur_edge_0.05.jpg" alt="edge threshold 0.05"><figcaption>threshold 0.05</figcaption></figure>
-<figure><img src="assets/camblur_edge_0.06.jpg" alt="edge threshold 0.06"><figcaption>threshold 0.06 (chosen)</figcaption></figure>
+<figure><img src="assets/camblur_edge_0.06.jpg" alt="edge threshold 0.06"><figcaption>threshold 0.06 (I choose this)</figcaption></figure>
 <figure><img src="assets/camblur_edge_0.10.jpg" alt="edge threshold 0.10"><figcaption>threshold 0.10</figcaption></figure>
 </div>
-<p><strong>Differences:</strong> the gradient values are much smaller (a step is spread over several pixels), so the threshold drops from 0.25 to 0.06. The edges are thicker and continuous instead of broken dashes, and the grass texture is mostly gone because the blur removes it before the derivative. Less noise and fewer missing edges at the same time.</p>
+<p><strong>What is different:</strong> gradient values become much smaller (one step is spread to several pixels), so the threshold go down from 0.25 to 0.06. The edges are thicker and continuous, not broken dash any more, and the grass texture almost gone, because blur already remove it before derivative. So we get less noise and also less missing edge at same time.</p>
 <h3>DoG: one convolution instead of two</h3>
-<p>Convolution is associative, (I * G) * D<sub>x</sub> = I * (G * D<sub>x</sub>), so I convolve the Gaussian with D<sub>x</sub> and D<sub>y</sub> once to get two DoG filters and then convolve the image only once.</p>
+<p>Convolution is associative, (I * G) * D<sub>x</sub> = I * (G * D<sub>x</sub>), so I convolve the Gaussian with D<sub>x</sub> and D<sub>y</sub> first to get two DoG filters, then image only need convolve one time.</p>
 <div class="g3">
-<figure><img src="assets/filter_G.png" alt="Gaussian filter"><figcaption>Gaussian, 11x11 (20x enlarged)</figcaption></figure>
+<figure><img src="assets/filter_G.png" alt="Gaussian filter"><figcaption>Gaussian, 11x11 (enlarge 20x)</figcaption></figure>
 <figure><img src="assets/filter_DoGx.png" alt="DoG x filter"><figcaption>DoG<sub>x</sub> = G * D<sub>x</sub>, 11x12 (gray = 0)</figcaption></figure>
 <figure><img src="assets/filter_DoGy.png" alt="DoG y filter"><figcaption>DoG<sub>y</sub> = G * D<sub>y</sub>, 12x11</figcaption></figure>
 </div>
@@ -119,14 +119,14 @@
 <figure><img src="assets/camdog_mag.jpg" alt="DoG gradient magnitude"><figcaption>Gradient magnitude</figcaption></figure>
 <figure><img src="assets/camdog_edge_0.06.jpg" alt="DoG edges"><figcaption>threshold 0.06</figcaption></figure>
 </div>
-<p>Verification: the gradient magnitudes from the two ways differ by at most 1.1e-15 and the edge maps are identical for every threshold.</p>
+<p>Verify: gradient magnitude of the two ways differ at most 1.1e-15, and the edge maps are exactly same for every threshold.</p>
 </section>
 
 <section id="p21">
 <h2>Part 2.1: Image sharpening (unsharp masking)</h2>
-<p>A Gaussian blur keeps the low frequencies; original minus blur is the high frequencies (edges, texture). Adding α times the high frequencies back makes the image look sharper:</p>
+<p>Gaussian blur keep the low frequencies. Original minus blur is the high frequencies (edges, texture). Add α times high frequencies back, then image look sharper:</p>
 <div class="equation">sharp = I + α (I − G*I) = ((1+α) δ − α G) * I</div>
-<p>The right side is a single convolution with the unsharp mask kernel. Both versions give the same image (max difference 6e-14).</p>
+<p>The right side is one single convolution, this kernel is called unsharp mask filter. Two ways give same image (max difference 6e-14).</p>
 <h3>Taj Mahal, σ = 1.5</h3>
 <div class="g4">
 <figure><img src="assets/taj_orig.jpg" alt="taj original"><figcaption>Original</figcaption></figure>
@@ -140,57 +140,57 @@
 <figure><img src="assets/taj_sharp_a2.jpg" alt="alpha 2"><figcaption>α = 2</figcaption></figure>
 <figure><img src="assets/taj_sharp_a4.jpg" alt="alpha 4"><figcaption>α = 4</figcaption></figure>
 </div>
-<p>α = 0.5 to 1 makes the carvings and the people crisper. At α = 2 halos appear around the dark trees. At α = 4 the sky gets grainy because JPEG noise is high frequency too, and the dome looks outlined. Sharpening adds no information, it only boosts existing edges, so the good α depends on how noisy the picture is.</p>
+<p>α = 0.5 to 1, the carving and the people become more clear. α = 2, there is halo around the dark trees. α = 4, the sky become grainy because JPEG noise is also high frequency, and the dome looks like has an outline. Sharpening do not add new information, it only make the existing edges stronger, so the good α depend on how much noise in the picture.</p>
 <h3>Doe Library, σ = 2</h3>
 <div class="g4">
-<figure><img src="assets/doe_orig.jpg" alt="doe library original"><figcaption>Original, overcast day</figcaption></figure>
+<figure><img src="assets/doe_orig.jpg" alt="doe library original"><figcaption>Original, cloudy day</figcaption></figure>
 <figure><img src="assets/doe_high.jpg" alt="doe high frequencies"><figcaption>High frequencies (x3, gray = 0)</figcaption></figure>
 <figure><img src="assets/doe_sharp_a1.jpg" alt="doe alpha 1"><figcaption>α = 1</figcaption></figure>
 <figure><img src="assets/doe_sharp_a2.jpg" alt="doe alpha 2"><figcaption>α = 2</figcaption></figure>
 </div>
-<p>The columns and window frames pop out at α = 1, α = 2 starts to look harsh. The flat gray sky stays flat, it has no high frequencies to boost.</p>
-<h3>Evaluation: blur a sharp image, then sharpen it</h3>
-<p>A sharp lion photo, blurred with σ = 2, then unsharp masked with the same σ.</p>
+<p>The columns and window frames stand out at α = 1, α = 2 already a bit too strong. The flat gray sky is still flat, because there is no high frequency to add.</p>
+<h3>Evaluation: blur a sharp image and sharpen it again</h3>
+<p>Take a sharp lion photo, blur with σ = 2, then unsharp mask with same σ.</p>
 <div class="g4">
 <figure><img src="assets/lion_orig.jpg" alt="lion original"><figcaption>Original</figcaption></figure>
 <figure><img src="assets/lion_blurred.jpg" alt="lion blurred"><figcaption>Blurred, σ = 2</figcaption></figure>
-<figure><img src="assets/lion_resharp_a2.jpg" alt="lion resharpened alpha 2"><figcaption>Blurred then sharpened, α = 2</figcaption></figure>
+<figure><img src="assets/lion_resharp_a2.jpg" alt="lion resharpened alpha 2"><figcaption>Blur then sharpen, α = 2</figcaption></figure>
 <figure><img src="assets/lion_resharp_a5.jpg" alt="lion resharpened alpha 5"><figcaption>α = 5</figcaption></figure>
 </div>
-<p>Sharpening makes the blurred lion look crisper again, but the fine hairs of the mane do not come back: they were averaged away by the blur and are not in the image anymore. At α = 5 the edges that survived get halos while the fur stays smooth. Unsharp masking boosts the high frequencies that are still there, it is not the inverse of blurring.</p>
+<p>After sharpening the blurred lion looks more clear again, but the thin hairs of the mane do not come back, they are averaged away by the blur and not in the image any more. With α = 5 the edges that still exist get halo, but the fur is still smooth. Unsharp mask only make the remaining high frequency stronger, it is not the inverse of blur.</p>
 </section>
 
 <section id="p22">
 <h2>Part 2.2: Hybrid images</h2>
-<p>Hybrid = low frequencies of one picture + high frequencies of another. Close up the high frequencies win, from far away only the low frequencies are left. Low pass: Gaussian with σ<sub>low</sub>. High pass: image minus Gaussian with σ<sub>high</sub>. All hybrids are grayscale.</p>
-<p>Alignment uses the starter code with the two eye positions typed in instead of clicked: recenter on the eye midpoint, rescale so the eye distances match, rotate one image, crop both to the same size. I pass the low frequency picture as the one that gets rotated, since black corners matter less on a blurred image. The black borders come from this padding and rotation.</p>
+<p>Hybrid image = low frequencies of one picture + high frequencies of another picture. When close, high frequency win, when far away only low frequency left. Low pass: Gaussian with σ<sub>low</sub>. High pass: image minus Gaussian with σ<sub>high</sub>. All hybrids here are gray.</p>
+<p>Alignment use the starter code, but I type the two eye positions by hand instead of click: recenter on the middle of eyes, rescale so the eye distance same, rotate one image, crop both to same size. I give the low frequency picture as the one to rotate, because black corner is not so obvious on blurred image. The black borders in the results come from this padding and rotation.</p>
 
 <h3>Derek and Nutmeg, full process</h3>
 <div class="g4">
 <figure><img src="assets/derek_in1.jpg" alt="Derek"><figcaption>Input 1, Derek (high)</figcaption></figure>
 <figure><img src="assets/derek_in2.jpg" alt="Nutmeg"><figcaption>Input 2, Nutmeg (low)</figcaption></figure>
 <figure><img src="assets/derek_aligned1.jpg" alt="Derek aligned"><figcaption>Derek aligned, gray</figcaption></figure>
-<figure><img src="assets/derek_aligned2.jpg" alt="Nutmeg aligned"><figcaption>Nutmeg scaled, rotated, cropped</figcaption></figure>
+<figure><img src="assets/derek_aligned2.jpg" alt="Nutmeg aligned"><figcaption>Nutmeg scaled, rotated and cropped</figcaption></figure>
 </div>
 <div class="g3">
 <figure><img src="assets/derek_high.jpg" alt="Derek high pass"><figcaption>High pass of Derek, σ<sub>high</sub> = 4 (gray = 0)</figcaption></figure>
 <figure><img src="assets/derek_low.jpg" alt="Nutmeg low pass"><figcaption>Low pass of Nutmeg, σ<sub>low</sub> = 10</figcaption></figure>
-<figure><img src="assets/derek_hybrid.jpg" alt="hybrid"><figcaption>Hybrid: Derek up close, Nutmeg from far</figcaption></figure>
+<figure><img src="assets/derek_hybrid.jpg" alt="hybrid"><figcaption>Hybrid: Derek when close, Nutmeg when far</figcaption></figure>
 </div>
-<p>Log magnitude of the Fourier transform, <code>np.log(np.abs(np.fft.fftshift(np.fft.fft2(img))))</code>:</p>
+<p>Log magnitude of Fourier transform, <code>np.log(np.abs(np.fft.fftshift(np.fft.fft2(img))))</code>:</p>
 <div class="g5">
 <figure><img src="assets/derek_fft_in1.jpg" alt="fft Derek"><figcaption>Derek</figcaption></figure>
 <figure><img src="assets/derek_fft_in2.jpg" alt="fft Nutmeg"><figcaption>Nutmeg</figcaption></figure>
-<figure><img src="assets/derek_fft_high.jpg" alt="fft high pass"><figcaption>High pass: center removed</figcaption></figure>
-<figure><img src="assets/derek_fft_low.jpg" alt="fft low pass"><figcaption>Low pass: only the center blob</figcaption></figure>
-<figure><img src="assets/derek_fft_hybrid.jpg" alt="fft hybrid"><figcaption>Hybrid: Nutmeg's center, Derek's outside</figcaption></figure>
+<figure><img src="assets/derek_fft_high.jpg" alt="fft high pass"><figcaption>High pass: center is removed</figcaption></figure>
+<figure><img src="assets/derek_fft_low.jpg" alt="fft low pass"><figcaption>Low pass: only center left</figcaption></figure>
+<figure><img src="assets/derek_fft_hybrid.jpg" alt="fft hybrid"><figcaption>Hybrid: center from Nutmeg, outside from Derek</figcaption></figure>
 </div>
-<p><strong>Cutoff.</strong> A Gaussian with std σ pixels drops a frequency f (cycles/pixel) to half at f ≈ 0.19/σ. So σ<sub>low</sub> = 10 keeps details coarser than about 50 pixels per cycle and σ<sub>high</sub> = 4 keeps details finer than about 20 pixels, on the 498x827 aligned image.</p>
+<p><strong>Cutoff frequency.</strong> Gaussian with std σ pixel make frequency f (cycles/pixel) drop to half at about f ≈ 0.19/σ. So σ<sub>low</sub> = 10 keep the detail bigger than about 50 pixels per cycle, and σ<sub>high</sub> = 4 keep the detail smaller than about 20 pixels, on the 498x827 aligned image. I try some different values:</p>
 <figure class="narrow"><img src="assets/derek_cutoffs.jpg" alt="cutoff grid"><figcaption>Rows: σ<sub>high</sub> = 2, 4, 8. Columns: σ<sub>low</sub> = 5, 10, 20.</figcaption></figure>
-<p>σ<sub>low</sub> = 5 leaves the cat sharp enough to fight with Derek up close (double exposure); σ<sub>low</sub> = 20 turns the cat into a blob that never reads as a cat. σ<sub>high</sub> = 2 leaves only thin outlines of Derek, σ<sub>high</sub> = 8 keeps so much of him that he is visible at every distance. σ<sub>high</sub> = 4, σ<sub>low</sub> = 10 gives the cleanest switch; σ<sub>low</sub> should be clearly larger than σ<sub>high</sub> so the two images do not share a band.</p>
+<p>σ<sub>low</sub> = 5, the cat is still too sharp and fight with Derek when close, like double exposure. σ<sub>low</sub> = 20, the cat become a blob and cannot recognize it is a cat. σ<sub>high</sub> = 2 only leave thin outline of Derek, σ<sub>high</sub> = 8 keep too much of Derek so he is visible in every distance. σ<sub>high</sub> = 4, σ<sub>low</sub> = 10 switch most clean. σ<sub>low</sub> should be clearly bigger than σ<sub>high</sub>, so the two images do not share same frequency band.</p>
 
 <h3>House cat and lion</h3>
-<p>Cat up close, lion from far, aligned on the eyes. σ<sub>high</sub> = 4, σ<sub>low</sub> = 6. The lion needs a smaller σ<sub>low</sub> than Nutmeg because its face is small in the frame; with a bigger blur the mane and the grass merge into one blob.</p>
+<p>Cat when close, lion when far, aligned on the eyes. σ<sub>high</sub> = 4, σ<sub>low</sub> = 6. Lion need smaller σ<sub>low</sub> than Nutmeg because its face is small in the picture, if blur more, the mane and the grass mix to one blob.</p>
 <div class="g3">
 <figure><img src="assets/catlion_in1.jpg" alt="cat"><figcaption>Input 1, cat (high)</figcaption></figure>
 <figure><img src="assets/catlion_in2.jpg" alt="lion"><figcaption>Input 2, lion (low)</figcaption></figure>
@@ -203,13 +203,13 @@
 <figure><img src="assets/doe_in2.jpg" alt="doe far"><figcaption>Input 2, far (low)</figcaption></figure>
 <figure><img src="assets/doe_hybrid.jpg" alt="doe hybrid"><figcaption>Hybrid, σ<sub>high</sub> = 3, σ<sub>low</sub> = 8</figcaption></figure>
 </div>
-<p>Does not work. Both pictures are only straight lines and repeated windows, so the blurred building is just smeared lines that never form an object of its own; at every distance you see the sharp building plus smearing. The perspective is also different, so the lines cannot be aligned by scale and rotation. Hybrids need two images with similar coarse structure, and the low frequency one needs big smooth regions that survive the blur.</p>
+<p>This one not work. Both pictures are only straight lines and repeated windows, so the blurred building is just some smeared lines, it never become an object by itself, in every distance you only see the sharp building plus some smear. Also the perspective is different, so the lines cannot be aligned by scale and rotation. Hybrid need two images with similar big structure, and the low frequency one need big smooth area that can survive the blur.</p>
 </section>
 
 <section id="p23">
 <h2>Part 2.3: Gaussian and Laplacian stacks</h2>
-<p>A stack is a pyramid without downsampling, all levels keep the full size. Gaussian stack: level 0 is the image, each next level is the previous one blurred with σ doubling (2, 4, 8, 16, 32), so detail disappears at the same rate as in a pyramid. Laplacian stack: difference of neighbouring Gaussian levels, the last level is the blurriest Gaussian itself, so the sum of all Laplacian levels is the original (reconstruction error 1e-16). Implemented from scratch with the Gaussian kernel from <code>cv2.getGaussianKernel</code>.</p>
-<p>Gaussian stack, apple and orange:</p>
+<p>Stack is like pyramid but no downsample, every level keep full size. Gaussian stack: level 0 is the image, every next level is the last level blurred with σ doubled (2, 4, 8, 16, 32), so the detail disappear at same speed as pyramid. Laplacian stack: difference of two neighbour Gaussian levels, the last level is the most blurry Gaussian itself, so sum of all Laplacian levels is the original image (reconstruction error 1e-16). Everything is written from scratch, only use Gaussian kernel from <code>cv2.getGaussianKernel</code>.</p>
+<p>Gaussian stack of apple and orange:</p>
 <div class="g6">
 <figure><img src="assets/apple_gauss_0.jpg" alt="apple gauss 0"><figcaption>G0</figcaption></figure>
 <figure><img src="assets/apple_gauss_1.jpg" alt="apple gauss 1"><figcaption>G1, σ 2</figcaption></figure>
@@ -224,7 +224,7 @@
 <figure><img src="assets/orange_gauss_4.jpg" alt="orange gauss 4"><figcaption>G4</figcaption></figure>
 <figure><img src="assets/orange_gauss_5.jpg" alt="orange gauss 5"><figcaption>G5</figcaption></figure>
 </div>
-<p>Laplacian stack (levels 0 to 4 stretched to full contrast for display, level 5 is the plain residual):</p>
+<p>Laplacian stack (level 0 to 4 are stretched to full contrast for display, level 5 is just the residual):</p>
 <div class="g6">
 <figure><img src="assets/apple_lap_0.jpg" alt="apple lap 0"><figcaption>L0 = G0 − G1</figcaption></figure>
 <figure><img src="assets/apple_lap_1.jpg" alt="apple lap 1"><figcaption>L1</figcaption></figure>
@@ -239,15 +239,15 @@
 <figure><img src="assets/orange_lap_4.jpg" alt="orange lap 4"><figcaption>L4</figcaption></figure>
 <figure><img src="assets/orange_lap_5.jpg" alt="orange lap 5"><figcaption>L5 = G5</figcaption></figure>
 </div>
-<p>Fine levels hold the peel texture and outline, middle levels the highlights and shading, the last level only the overall colour. Recreation of Szeliski Figure 3.42 (levels 0, 2, 4 and the sum): left column apple Laplacian level times the blurred mask, middle column orange level times one minus the mask, right column their sum; bottom row adds all levels.</p>
-<figure class="narrow"><img src="assets/oraple_fig342.jpg" alt="figure 3.42 recreation"><figcaption>Figure 3.42 (a)-(l): masked apple, masked orange and blend at levels 0, 2, 4; bottom row: reconstructed inputs and the oraple.</figcaption></figure>
+<p>The fine levels have the peel texture and the outline, middle levels have the highlight and shading, last level only have the overall colour. Below is the recreation of Figure 3.42 in Szeliski (level 0, 2, 4 and the sum): left column is apple Laplacian level times the blurred mask, middle column is orange level times (1 − mask), right column is their sum; bottom row add all levels together.</p>
+<figure class="narrow"><img src="assets/oraple_fig342.jpg" alt="figure 3.42 recreation"><figcaption>Figure 3.42 (a)-(l): masked apple, masked orange and blend at level 0, 2, 4; bottom row: reconstructed inputs and the oraple.</figcaption></figure>
 </section>
 
 <section id="p24">
 <h2>Part 2.4: Multiresolution blending</h2>
-<p>With Laplacian stacks L<sub>A</sub>, L<sub>B</sub> and a Gaussian stack G<sub>M</sub> of the mask (1 where A shows), each level is blended separately and the levels are added:</p>
+<p>Use Laplacian stacks L<sub>A</sub>, L<sub>B</sub> and a Gaussian stack G<sub>M</sub> of the mask (1 means show A), blend every level separately and add them up:</p>
 <div class="equation">L<sub>out,i</sub> = G<sub>M,i</sub> · L<sub>A,i</sub> + (1 − G<sub>M,i</sub>) · L<sub>B,i</sub> ,   out = Σ<sub>i</sub> L<sub>out,i</sub></div>
-<p>The mask gets blurrier at each level, so fine detail is cut with a sharp seam (a sharp cut between two textures looks natural) while colour and shading are mixed over a wide band, which hides the seam. 6 levels, σ = 2 doubling, colour images channel by channel.</p>
+<p>The mask become more blurry in every level, so fine detail is cut with sharp seam (sharp cut between two textures looks natural), but colour and shading are mixed in a wide band, so the seam is hidden. I use 6 levels, σ = 2 doubling, colour image is done channel by channel.</p>
 <h3>The oraple (vertical seam)</h3>
 <div class="g4">
 <figure><img src="assets/oraple_in1.jpg" alt="apple"><figcaption>Apple</figcaption></figure>
@@ -258,27 +258,27 @@
 <h3>Liger (vertical seam, aligned on the eyes)</h3>
 <div class="g4">
 <figure><img src="assets/liger_in1.jpg" alt="lion aligned"><figcaption>Lion, aligned</figcaption></figure>
-<figure><img src="assets/liger_in2.jpg" alt="tiger aligned"><figcaption>Tiger, scaled and rotated to the lion's eyes</figcaption></figure>
+<figure><img src="assets/liger_in2.jpg" alt="tiger aligned"><figcaption>Tiger, scaled and rotated to lion's eyes</figcaption></figure>
 <figure><img src="assets/liger_mask.jpg" alt="liger mask"><figcaption>Mask</figcaption></figure>
 <figure><img src="assets/liger_blend.jpg" alt="liger blend"><figcaption>Blend</figcaption></figure>
 </div>
-<p>Stripes and mane stop with a sharp cut at fine scales, which looks like fur; the yellow and orange backgrounds fade over a wide band. The black band at the top is padding from the alignment.</p>
+<p>Stripes and mane stop with sharp cut in fine scale, looks like real fur; the yellow and orange background fade to each other in a wide band. The black band on top is padding from the alignment.</p>
 <h3>Cat on Derek (ellipse mask), my favourite</h3>
-<p>The cat is aligned to Derek's eyes with the code from 2.2 (Derek gets scaled down to the cat's eye distance), the mask is an ellipse around the cat's head.</p>
+<p>The cat is aligned to Derek's eyes with the code in 2.2 (Derek is scaled down to the cat's eye distance), the mask is an ellipse around the cat head.</p>
 <div class="g4">
 <figure><img src="assets/catderek_in1.jpg" alt="cat aligned"><figcaption>Cat, aligned</figcaption></figure>
 <figure><img src="assets/catderek_in2.jpg" alt="Derek aligned"><figcaption>Derek, aligned</figcaption></figure>
 <figure><img src="assets/catderek_mask.jpg" alt="ellipse mask"><figcaption>Mask</figcaption></figure>
 <figure><img src="assets/catderek_blend.jpg" alt="cat derek blend"><figcaption>Blend</figcaption></figure>
 </div>
-<figure class="narrow"><img src="assets/catderek_fig342.jpg" alt="cat derek laplacian stack"><figcaption>Like Figure 10 in Burt and Adelson. Left: cat levels × mask. Middle: Derek levels × (1 − mask). Right: blended levels 0, 2, 4. Bottom: sums.</figcaption></figure>
-<p>At the fine levels the fur ends exactly at the ellipse and Derek's hair and collar start; at level 4 the pale sky behind the cat and the gray studio background are mixed over a band as wide as the head, so there is no colour edge, only a soft glow around the head.</p>
+<figure class="narrow"><img src="assets/catderek_fig342.jpg" alt="cat derek laplacian stack"><figcaption>Like Figure 10 in Burt and Adelson. Left: cat levels × mask. Middle: Derek levels × (1 − mask). Right: blended level 0, 2, 4. Bottom: sums.</figcaption></figure>
+<p>In fine levels the fur end exactly at the ellipse and Derek's hair and collar start; in level 4 the pale sky behind cat and the gray studio background are mixed in a band as wide as the head, so no colour edge, only a soft glow around the head.</p>
 </section>
 
 <section id="learned">
 <h2>The most important thing I learned</h2>
-<p>Blur and detail are the same thing from two sides. A Gaussian keeps the low frequencies, original minus blur is the high frequencies, and with that one split you can sharpen (add the detail back), make a hybrid (detail of one picture on the blur of another) or blend (split into bands and pick a seam width per band). The practical lesson: most of the time went into thresholds, sigmas and alignment, not into the filters, and the right numbers depend on the image size and content.</p>
-<p class="small">Image credits: cameraman, Taj Mahal, apple/orange, Derek and Nutmeg from the course. Portrait (Part 1.1) and Doe Library photos are my own from Project 0. <a href="https://commons.wikimedia.org/wiki/File:Lion_waiting_in_Namibia.jpg">Lion</a> by Kevin Pluck (CC BY 2.0), <a href="https://commons.wikimedia.org/wiki/File:Cat_November_2010-1a.jpg">cat</a> by Alvesgaspar (CC BY-SA 3.0), <a href="https://commons.wikimedia.org/wiki/File:Siberischer_tiger_de_edit02.jpg">tiger</a> from Wikimedia Commons (CC BY-SA 2.5).</p>
+<p>Blur and detail is actually same thing from two sides. Gaussian keep the low frequency, original minus blur is the high frequency, and with this one split we can do sharpen (add detail back), hybrid (detail of one picture put on blur of another) and blending (split to many bands, every band use different seam width). Also, most of my time is spent on choosing threshold, sigma and alignment, not on the filter itself, and the good numbers depend on image size and content.</p>
+<p class="small">Image credits: cameraman, Taj Mahal, apple/orange, Derek and Nutmeg are from the course. Portrait (Part 1.1) and Doe Library photos are my own from Project 0. <a href="https://commons.wikimedia.org/wiki/File:Lion_waiting_in_Namibia.jpg">Lion</a> by Kevin Pluck (CC BY 2.0), <a href="https://commons.wikimedia.org/wiki/File:Cat_November_2010-1a.jpg">cat</a> by Alvesgaspar (CC BY-SA 3.0), <a href="https://commons.wikimedia.org/wiki/File:Siberischer_tiger_de_edit02.jpg">tiger</a> from Wikimedia Commons (CC BY-SA 2.5).</p>
 </section>
 </main>
 </body>
